@@ -93,15 +93,39 @@ export async function handleCard(
     render: CardRenderer,
     extraAnalytics: Record<string, unknown> = {}
 ): Promise<void> {
-    const {username, theme: rawTheme = 'default'} = req.query;
+        const {
+      username: requestedUsername,
+      theme: rawTheme = 'default',
+    } = req.query;
+    
     if (typeof rawTheme !== 'string') {
-        res.status(400).send('theme must be a string');
-        return;
+      res.status(400).send('theme must be a string');
+      return;
     }
-    if (typeof username !== 'string') {
-        res.status(400).send('username must be a string');
-        return;
+    
+    const fixedUsername = process.env.PROFILE_USERNAME?.trim();
+    
+    if (!fixedUsername) {
+      res.status(500).send('PROFILE_USERNAME is not configured');
+      return;
     }
+    
+    // username을 전달했다면 고정된 계정과 같은지 검사
+    if (
+      requestedUsername !== undefined &&
+      (
+        typeof requestedUsername !== 'string' ||
+        requestedUsername.toLowerCase() !== fixedUsername.toLowerCase()
+      )
+    ) {
+      res.status(403).send(
+        'This deployment only supports the configured GitHub profile',
+      );
+      return;
+    }
+    
+    // 실제 카드 생성에는 무조건 고정된 사용자명 사용
+    const username = fixedUsername;
     const theme = resolveThemeName(rawTheme);
     const override = parseThemeColorOverride(req.query);
     const animation = parseAnimation(req.query.animation);
